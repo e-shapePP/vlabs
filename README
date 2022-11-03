@@ -1,0 +1,7 @@
+Main code is in the VLABS\Codes\e-shape.ipynb
+Input data are:
+Carbon flux data in VLABS\Codes\Input\NEE\NEE_data_Germany.txt
+Meteorological data in VLABS\Codes\Input\EV\Meteo_data_Germany.txt
+
+Configuration file is:
+Model parameters and variables VLABS\Codes\Configs\Configuration_file.cfg
