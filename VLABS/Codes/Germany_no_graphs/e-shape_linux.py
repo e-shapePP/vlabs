@@ -4,69 +4,69 @@
 # In[72]:
 
 
-"""
-This scripts runs post-processing steps for Eddy covariance data coming
-in one file in the format of europe-fluxdata.eu. This format is very similar
-to the ICOS format (the only known difference is the unit of pressure,
-which is hPa in europe-fluxdata.eu and kPa in ICOS).
+# """
+# This scripts runs post-processing steps for Eddy covariance data coming
+# in one file in the format of europe-fluxdata.eu. This format is very similar
+# to the ICOS format (the only known difference is the unit of pressure,
+# which is hPa in europe-fluxdata.eu and kPa in ICOS).
 
-The script covers the following steps:
-- spike / outlier detection with mean absolute deviation filter
-  after Papale et al. (Biogeosci, 2006)
-- ustar filtering after Papale et al. (Biogeosci, 2006)
-- carbon flux partitioning with the nighttime method
-  of Reichstein et al. (Global Change Biolo, 2005) and
-  the daytime method of Lasslop et al. (Global Change Biolo, 2010)
-- gap filling with marginal distribution sampling (MDS)
-  of Reichstein et al. (Global Change Biolo, 2005)
-- flux error estimates using MDS after Lasslop et al. (Biogeosci, 2008)
+# The script covers the following steps:
+# - spike / outlier detection with mean absolute deviation filter
+#   after Papale et al. (Biogeosci, 2006)
+# - ustar filtering after Papale et al. (Biogeosci, 2006)
+# - carbon flux partitioning with the nighttime method
+#   of Reichstein et al. (Global Change Biolo, 2005) and
+#   the daytime method of Lasslop et al. (Global Change Biolo, 2010)
+# - gap filling with marginal distribution sampling (MDS)
+#   of Reichstein et al. (Global Change Biolo, 2005)
+# - flux error estimates using MDS after Lasslop et al. (Biogeosci, 2008)
 
-The script is controlled by a config file in Python's standard configparser
-format. The config file includes all possible parameters of used routines.
-Default parameter values follow the package REddyProc where appropriate. See
-comments in config file for details.
+# The script is controlled by a config file in Python's standard configparser
+# format. The config file includes all possible parameters of used routines.
+# Default parameter values follow the package REddyProc where appropriate. See
+# comments in config file for details.
 
-The script currently flags on input all NaN values and given *undefined*
-values. Variables should be set to *undefined* in case of other existing flags
-before calling the script. Otherwise it should be easy to set the appropriate
-flags in the pandas DataFrame dff for the flags after its creation around line
-160.
+# The script currently flags on input all NaN values and given *undefined*
+# values. Variables should be set to *undefined* in case of other existing flags
+# before calling the script. Otherwise it should be easy to set the appropriate
+# flags in the pandas DataFrame dff for the flags after its creation around line
+# 160.
 
-The output file can either have all flagged variables set to *undefined*
-and/or can include flag columns for each variable (see config file).
+# The output file can either have all flagged variables set to *undefined*
+# and/or can include flag columns for each variable (see config file).
 
-Note, ustar filtering needs at least one full year.
+# Note, ustar filtering needs at least one full year.
 
-Examples
---------
-python postproc_europe-fluxdata.py hesseflux_example.cfg
+# Examples
+# --------
+# python postproc_europe-fluxdata.py hesseflux_example.cfg
 
-History
--------
-Written, Matthias Cuntz, April 2020
-"""
+# History
+# -------
+# Written, Matthias Cuntz, April 2020
+# """
 
-"""
+# """
 
-27/09/2021
+# 27/09/2021
 
-Integration of Footprint predictor model and satellite images from google earth engine 
-to derive empirical remote sensing models and monthly and annual maps.
+# Integration of Footprint predictor model and satellite images from google earth engine 
+# to derive empirical remote sensing models and monthly and annual maps.
 
-Written, Mario Alberto Fuentes Monjaraz, October 2021
+# Written, Mario Alberto Fuentes Monjaraz, October 2021
 
 
-"""
+# """
 
-"""
+# """
 
-5/09/2022
+# 5/09/2022
 
-Getting code ready  to be used on VLABS
+# Getting code ready  to be used on VLABS
 
-Pdrive: 11204971
+# Pdrive: 11204971
 
-"""
+# """
 
 
 # In[73]:
@@ -102,7 +102,6 @@ import altair as alt
 import math
 from pyproj import Proj
 import matplotlib.pyplot as plt
-get_ipython().run_line_magic('matplotlib', 'inline')
 import ee
 import statsmodels.formula.api as smf
 import statsmodels.api as sm
