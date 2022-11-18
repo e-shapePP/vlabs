@@ -88,7 +88,7 @@ Pdrive: 11204971
 
 
 #Import Python packages used in the code
-from __future__ import division, absolute_import, print_function
+#from __future__ import division, absolute_import, print_function
 import time as ptime
 import sys
 import configparser
@@ -102,7 +102,7 @@ import altair as alt
 import math
 from pyproj import Proj
 import matplotlib.pyplot as plt
-get_ipython().run_line_magic('matplotlib', 'inline')
+#get_ipython().run_line_magic('matplotlib', 'inline')
 import ee
 import statsmodels.formula.api as smf
 import statsmodels.api as sm
@@ -116,6 +116,7 @@ from datetime import date, datetime
 from dateutil.relativedelta import relativedelta
 import pyjams as pj
 import time 
+import calc_footprint_FFP_climatology as ffpmodule
 
 
 # In[75]:
@@ -952,7 +953,7 @@ if climatological_footprint:
         df['u_mean'] = df_u_mean
         
         # brings a code with the FPP model 
-        get_ipython().run_line_magic('run', 'FFP_Python/calc_footprint_FFP_climatology.py')
+        #get_ipython().run_line_magic('run', 'FFP_Python/calc_footprint_FFP_climatology.py')
     
         # defines h (boundary layer height) in convective conditions 
         df['h_convective'] = boundary_layer_height
@@ -1014,7 +1015,7 @@ if climatological_footprint:
         # function to calcuate the footprint
         def calculateFootprint(list):
             l = list
-            FFP = FFP_climatology (zm=l[0], z0=None, umean = l[2], h=l[3], ol=l[4], sigmav=l[5],
+            FFP = ffpmodule.FFP_climatology(zm=l[0], z0=None, umean = l[2], h=l[3], ol=l[4], sigmav=l[5],
             ustar=l[6], wind_dir=l[7], domain=l[8], nx=None, rs=l[9],smooth_data=1, fig=0)
             return FFP
         
