@@ -106,7 +106,8 @@ import matplotlib.pyplot as plt
 import ee
 import statsmodels.formula.api as smf
 import statsmodels.api as sm
-from sklearn.model_selection import train_test_split
+import sklearn as sk 
+#from sklearn.model_selection import train_test_split
 from scipy import stats
 from statsmodels.sandbox.regression.predstd import wls_prediction_std
 import folium
@@ -2196,7 +2197,7 @@ if correlation_analysis_simple:
             "%s"%best_model_cai: "%s"%best_model_cai}).copy()
         
         # dividing dataframe in training and testing dataframe with a constant seed equal to 10
-        training, testing = train_test_split(experiment, test_size = 0.2, random_state=10)
+        training, testing = sk.model_selection.train_test_split(experiment, test_size = 0.2, random_state=10)
     
         print('      Training dataset:%d ' %len(training))
         print('      Testing dataset:%d ' %len(testing))
