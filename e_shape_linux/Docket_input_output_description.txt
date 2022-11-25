@@ -1,0 +1,84 @@
+{
+  "inputs": [
+    {
+      "id"         : "NEE_data",
+      "inputType"  : "individual",
+      "valueType"  : "value",
+      "description": "Carbon flux data",
+      "name"       : "NEE",
+      "obligation" : true,
+      "hasDefault" : false,
+      "valueSchema": "url",
+      "target"     : "Input/NEE/_NEE.txt"
+    }
+    {
+      "id"         : "EV_data",
+      "inputType"  : "individual",
+      "valueType"  : "value",
+      "description": "Environmental data",
+      "name"       : "EV",
+      "obligation" : true,
+      "hasDefault" : false,
+      "valueSchema": "url",
+      "target"     : "Input/_EV.txt"
+    }
+    {
+      "id"         : "Configuration_file",
+      "inputType"  : "individual",
+      "valueType"  : "value",
+      "description": "Configuration file describing the model parameters",
+      "name"       : "Configuration file",
+      "obligation" : true,
+      "hasDefault" : false,
+      "valueSchema": "url",
+      "target"     : "Configs/_Configuration_file.cfg"
+    }
+  ],
+  "outputs": [
+    {
+      "id"         : "Classification_map",
+      "outputType" : "individual",
+      "valueType"  : "value",
+      "description": "Classification map",
+      "name"       : "Classification map",
+      "valueSchema": "url",
+      "target"     : "Output/Maps_output/_Classification_map.html"
+    }
+    {
+      "id"         : "Dashboard_15.html",
+      "outputType" : "individual",
+      "valueType"  : "value",
+      "description": "GPP maps with 15-day frequency",
+      "name"       : "Dashboard 15",
+      "valueSchema": "url",
+      "target"     : "Output/Maps_output/_Dashboard_15.html"
+    }
+    {
+      "id"         : "Dashboard_30.html",
+      "outputType" : "individual",
+      "valueType"  : "value",
+      "description": "GPP maps with 30-day frequency",
+      "name"       : "Dashboard 30",
+      "valueSchema": "url",
+      "target"     : "Output/Maps_output/_Dashboard_30.html"
+    }
+    {
+      "id"         : "15_day_maps",
+      "outputType" : "individual",
+      "valueType"  : "value",
+      "description": "Download links for 15-day maps",
+      "name"       : "15-day maps",
+      "valueSchema": "url",
+      "target"     : "Output/Maps_output/_Maps_15.xlsx"
+    }
+    {
+      "id"         : "30_day_maps",
+      "outputType" : "individual",
+      "valueType"  : "value",
+      "description": "Download links for 30-day maps",
+      "name"       : "30-day maps",
+      "valueSchema": "url",
+      "target"     : "Output/Maps_output/_Maps_30.xlsx"
+    }
+  ]
+}
