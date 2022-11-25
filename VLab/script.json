@@ -1,0 +1,15 @@
+{
+"scripts": [
+{
+"repoPath": "run.sh",
+"targetPath": "run.sh",
+"pathType": "FILE"
+},
+{
+"repoPath": "VLABS\Codes\Germany_no_graphs\e-shape_linux_final.py",
+"targetPath": "VLABS\Codes\Germany_no_graphs\e-shape_linux_final.py",
+"pathType": "FILE"
+}
+]
+}
+
