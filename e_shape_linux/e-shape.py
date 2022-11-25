@@ -1575,7 +1575,7 @@ if environmental_variables_station:
         return df
     
     # directory with the Data
-    filepath = os.getcwd() + '\\Input'
+    filepath = os.getcwd() + '/Input'
     first_file= meteo_file
     
     # reading file meteorological station
