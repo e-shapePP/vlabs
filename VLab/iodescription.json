@@ -9,7 +9,7 @@
       "obligation" : true,
       "hasDefault" : false,
       "valueSchema": "url",
-      "target"     : "Input/NEE/NEE.txt"
+      "target"     : "e_shape_linux/Input/NEE/NEE.txt"
     },
     {
       "id"         : "EV_data",
@@ -20,7 +20,7 @@
       "obligation" : true,
       "hasDefault" : false,
       "valueSchema": "url",
-      "target"     : "Input/EV/EV.txt"
+      "target"     : "e_shape_linux/Input/EV/EV.txt"
     },
     {
       "id"         : "Configuration_file",
@@ -31,7 +31,7 @@
       "obligation" : true,
       "hasDefault" : false,
       "valueSchema": "url",
-      "target"     : "Configs/Configuration_file.cfg"
+      "target"     : "e_shape_linux/Configs/Configuration_file.cfg"
     }
   ],
   "outputs": [
@@ -42,7 +42,7 @@
       "description": "Classification map",
       "name"       : "Classification map",
       "valueSchema": "url",
-      "target"     : "Output/Maps_output/Classification_map.html"
+      "target"     : "e_shape_linux/Output/Maps_output/Classification_map.html"
     },
     {
       "id"         : "Dashboard_15.html",
@@ -51,7 +51,7 @@
       "description": "GPP maps with 15-day frequency",
       "name"       : "Dashboard 15",
       "valueSchema": "url",
-      "target"     : "Output/Maps_output/Dashboard_15.html"
+      "target"     : "e_shape_linux/Output/Maps_output/Dashboard_15.html"
     },
     {
       "id"         : "Dashboard_30.html",
@@ -60,7 +60,7 @@
       "description": "GPP maps with 30-day frequency",
       "name"       : "Dashboard 30",
       "valueSchema": "url",
-      "target"     : "Output/Maps_output/Dashboard_30.html"
+      "target"     : "e_shape_linux/Output/Maps_output/Dashboard_30.html"
     },
     {
       "id"         : "15_day_maps",
@@ -69,7 +69,7 @@
       "description": "Download links for 15-day maps",
       "name"       : "15-day maps",
       "valueSchema": "url",
-      "target"     : "Output/Maps_output/Maps_15.xlsx"
+      "target"     : "e_shape_linux/Output/Maps_output/Maps_15.xlsx"
     },
     {
       "id"         : "30_day_maps",
@@ -78,7 +78,7 @@
       "description": "Download links for 30-day maps",
       "name"       : "30-day maps",
       "valueSchema": "url",
-      "target"     : "Output/Maps_output/Maps_30.xlsx"
+      "target"     : "e_shape_linux/Output/Maps_output/Maps_30.xlsx"
     }
   ]
 }
