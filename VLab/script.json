@@ -11,8 +11,8 @@
 "pathType": "FILE"
 },
 {
-"repoPath": "calc_footprint_FFP_climatology.py",
-"targetPath": "calc_footprint_FFP_climatology.py",
+"repoPath": "e_shape_linux/calc_footprint_FFP_climatology.py",
+"targetPath": "e_shape_linux/calc_footprint_FFP_climatology.py",
 "pathType": "FILE"
 }
 ]
