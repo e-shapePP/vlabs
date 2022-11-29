@@ -1,5 +1,5 @@
 {
-  "image": "eshapegpp/eshape_germany",
+  "image": "eshapegpp/eshape_germany:latest",
   "privateimage": false,
   "resources": {
     "memory_mb": "5000",
