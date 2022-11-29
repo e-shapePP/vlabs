@@ -9,6 +9,11 @@
 "repoPath": "e_shape_linux/e-shape.py",
 "targetPath": "e_shape_linux/e-shape.py",
 "pathType": "FILE"
+},
+{
+"repoPath": "calc_footprint_FFP_climatology.py",
+"targetPath": "calc_footprint_FFP_climatology.py",
+"pathType": "FILE"
 }
 ]
 }
