@@ -10,7 +10,7 @@
       "hasDefault" : false,
       "valueSchema": "url",
       "target"     : "Input/NEE/NEE.txt"
-    }
+    },
     {
       "id"         : "EV_data",
       "inputType"  : "individual",
@@ -20,8 +20,8 @@
       "obligation" : true,
       "hasDefault" : false,
       "valueSchema": "url",
-      "target"     : "Input/EV.txt"
-    }
+      "target"     : "Input/EV/EV.txt"
+    },
     {
       "id"         : "Configuration_file",
       "inputType"  : "individual",
@@ -43,7 +43,7 @@
       "name"       : "Classification map",
       "valueSchema": "url",
       "target"     : "Output/Maps_output/Classification_map.html"
-    }
+    },
     {
       "id"         : "Dashboard_15.html",
       "outputType" : "individual",
@@ -52,7 +52,7 @@
       "name"       : "Dashboard 15",
       "valueSchema": "url",
       "target"     : "Output/Maps_output/Dashboard_15.html"
-    }
+    },
     {
       "id"         : "Dashboard_30.html",
       "outputType" : "individual",
@@ -61,7 +61,7 @@
       "name"       : "Dashboard 30",
       "valueSchema": "url",
       "target"     : "Output/Maps_output/Dashboard_30.html"
-    }
+    },
     {
       "id"         : "15_day_maps",
       "outputType" : "individual",
@@ -70,7 +70,7 @@
       "name"       : "15-day maps",
       "valueSchema": "url",
       "target"     : "Output/Maps_output/Maps_15.xlsx"
-    }
+    },
     {
       "id"         : "30_day_maps",
       "outputType" : "individual",

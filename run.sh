@@ -1,3 +1,3 @@
-cd VLABS/Codes/Germany_no_graphs
+cd e_shape_linux
 
-python e-shape_linux_final.py
+python e-shape.py
