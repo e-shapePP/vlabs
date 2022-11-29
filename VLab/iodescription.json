@@ -1,38 +1,5 @@
 {
   "inputs": [
-    {
-      "id"         : "NEE_data",
-      "inputType"  : "individual",
-      "valueType"  : "value",
-      "description": "Carbon flux data",
-      "name"       : "NEE",
-      "obligation" : true,
-      "hasDefault" : false,
-      "valueSchema": "url",
-      "target"     : "Input/NEE/NEE.txt"
-    },
-    {
-      "id"         : "EV_data",
-      "inputType"  : "individual",
-      "valueType"  : "value",
-      "description": "Environmental data",
-      "name"       : "EV",
-      "obligation" : true,
-      "hasDefault" : false,
-      "valueSchema": "url",
-      "target"     : "Input/EV/EV.txt"
-    },
-    {
-      "id"         : "Configuration_file",
-      "inputType"  : "individual",
-      "valueType"  : "value",
-      "description": "Configuration file describing the model parameters",
-      "name"       : "Configuration file",
-      "obligation" : true,
-      "hasDefault" : false,
-      "valueSchema": "url",
-      "target"     : "Configs/Configuration_file.cfg"
-    }
   ],
   "outputs": [
     {
