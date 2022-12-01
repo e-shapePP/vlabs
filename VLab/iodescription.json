@@ -42,7 +42,7 @@
       "description": "Classification map",
       "name"       : "Classification map",
       "valueSchema": "url",
-      "target"     : "e_shape_linux/Output/Maps_output/Classification_map.html",
+      "target"     : "e_shape_linux/Output/Maps_output",
       "createFolder": "false"
     },
     {
@@ -52,7 +52,7 @@
       "description": "GPP maps with 15-day frequency",
       "name"       : "Dashboard 15",
       "valueSchema": "url",
-      "target"     : "e_shape_linux/Output/Maps_output/Dashboard_15.html",
+      "target"     : "e_shape_linux/Output/Maps_output",
       "createFolder": "false"
     },
     {
@@ -62,7 +62,7 @@
       "description": "GPP maps with 30-day frequency",
       "name"       : "Dashboard 30",
       "valueSchema": "url",
-      "target"     : "e_shape_linux/Output/Maps_output/Dashboard_30.html",
+      "target"     : "e_shape_linux/Output/Maps_output",
       "createFolder": "false"
     },
     {
@@ -72,7 +72,7 @@
       "description": "Download links for 15-day maps",
       "name"       : "15-day maps",
       "valueSchema": "url",
-      "target"     : "e_shape_linux/Output/Maps_output/Maps_15.xlsx",
+      "target"     : "e_shape_linux/Output/Maps_output",
       "createFolder": "false"
     },
     {
@@ -82,7 +82,7 @@
       "description": "Download links for 30-day maps",
       "name"       : "30-day maps",
       "valueSchema": "url",
-      "target"     : "e_shape_linux/Output/Maps_output/Maps_30.xlsx",
+      "target"     : "e_shape_linux/Output/Maps_output",
       "createFolder": "false"
     }
   ]
