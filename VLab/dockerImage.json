@@ -8,8 +8,7 @@
   "container": {
     "entryPoint": [
       "/bin/bash",
-      "-c",
-      "cd eshapegermanycase"
+      "-c"
  ],
     "command": [
       "source activate eshape_vlab && ./run.sh"
