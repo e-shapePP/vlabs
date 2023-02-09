@@ -1796,8 +1796,8 @@ def plot_timeseries_vi_single(df,df_original, VI):
     
     return plt #.show()
 #---------------------------------------------------------------------------------------------------
-df = df_VI_export.copy()
-plot_timeseries_vi_multiple(df)
+#df = df_VI_export.copy()
+#plot_timeseries_vi_multiple(df)
 # plot_timeseries_vi_single(df, df_VI_time, 'NDVI')
 # plot_timeseries_vi_single(df, df_VI_time, 'EVI')
 # plot_timeseries_vi_single(df, df_VI_time, 'EVI2')
@@ -2420,7 +2420,7 @@ if correlation_analysis_simple:
 # In[20]:
 
 
-correlation_analysis_cai_simple.iloc[:20,:]   
+#correlation_analysis_cai_simple.iloc[:20,:]   
 
 
 # # Plot correlation analysis
