@@ -6,8 +6,8 @@
 "pathType": "FILE"
 },
 {
-"repoPath": "e_shape_linux",
-"targetPath": "e_shape_linux",
+"repoPath": "sen2gpp",
+"targetPath": "sen2gpp",
 "pathType": "DIRECTORY"
 }
 ]

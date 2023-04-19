@@ -9,7 +9,7 @@
       "obligation" : true,
       "hasDefault" : false,
       "valueSchema": "url",
-      "target"     : "e_shape_linux/Input/NEE/NEE.txt"
+      "target"     : "sen2gpp/Input/NEE/NEE.txt"
     },
     {
       "id"         : "EV_data",
@@ -20,7 +20,7 @@
       "obligation" : true,
       "hasDefault" : false,
       "valueSchema": "url",
-      "target"     : "e_shape_linux/Input/EV/EV.txt"
+      "target"     : "sen2gpp/Input/EV/EV.txt"
     },
     {
       "id"         : "Configuration_file",
@@ -31,7 +31,7 @@
       "obligation" : true,
       "hasDefault" : false,
       "valueSchema": "url",
-      "target"     : "e_shape_linux/Configs/Configuration_file.cfg"
+      "target"     : "sen2gpp/Configs/Configuration_file.cfg"
     }
   ],
   "outputs": [
@@ -42,7 +42,7 @@
       "description": "Classification map",
       "name"       : "Classification map",
       "valueSchema": "url",
-      "target"     : "e_shape_linux/Output/Maps_output_files/Classification_map.html",
+      "target"     : "sen2gpp/Output/Maps_output_files/Classification_map.html",
       "createFolder": "true"
     },
     {
@@ -52,7 +52,7 @@
       "description": "GPP maps with 15-day frequency",
       "name"       : "Dashboard 15",
       "valueSchema": "url",
-      "target"     : "e_shape_linux/Output/Maps_output_files/Dashboard_15.html",
+      "target"     : "sen2gpp/Output/Maps_output_files/Dashboard_15.html",
       "createFolder": "true"
     },
     {
@@ -62,7 +62,7 @@
       "description": "GPP maps with 30-day frequency",
       "name"       : "Dashboard 30",
       "valueSchema": "url",
-      "target"     : "e_shape_linux/Output/Maps_output_files/Dashboard_30.html",
+      "target"     : "sen2gpp/Output/Maps_output_files/Dashboard_30.html",
       "createFolder": "true"
     },
     {
@@ -72,7 +72,7 @@
       "description": "Download links for 15-day maps",
       "name"       : "15-day maps",
       "valueSchema": "url",
-      "target"     : "e_shape_linux/Output/Maps_output_files/Maps_15.xlsx",
+      "target"     : "sen2gpp/Output/Maps_output_files/Maps_15.xlsx",
       "createFolder": "true"
     },
     {
@@ -82,7 +82,7 @@
       "description": "Download links for 30-day maps",
       "name"       : "30-day maps",
       "valueSchema": "url",
-      "target"     : "e_shape_linux/Output/Maps_output_files/Maps_30.xlsx",
+      "target"     : "sen2gpp/Output/Maps_output_files/Maps_30.xlsx",
       "createFolder": "true"
     }
   ]
