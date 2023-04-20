@@ -36,54 +36,14 @@
   ],
   "outputs": [
     {
-      "id"         : "Classification_map",
+      "id"         : "Results",
       "outputType" : "individual",
       "valueType"  : "value",
-      "description": "Classification map",
-      "name"       : "Classification map",
+      "description": "Results",
+      "name"       : "Results",
       "valueSchema": "url",
-      "target"     : "sen2gpp/Output/Maps_output_files/Classification_map.html",
-      "createFolder": "true"
-    },
-    {
-      "id"         : "Dashboard_15.html",
-      "outputType" : "individual",
-      "valueType"  : "value",
-      "description": "GPP maps with 15-day frequency",
-      "name"       : "Dashboard 15",
-      "valueSchema": "url",
-      "target"     : "sen2gpp/Output/Maps_output_files/Dashboard_15.html",
-      "createFolder": "true"
-    },
-    {
-      "id"         : "Dashboard_30.html",
-      "outputType" : "individual",
-      "valueType"  : "value",
-      "description": "GPP maps with 30-day frequency",
-      "name"       : "Dashboard 30",
-      "valueSchema": "url",
-      "target"     : "sen2gpp/Output/Maps_output_files/Dashboard_30.html",
-      "createFolder": "true"
-    },
-    {
-      "id"         : "maps_15_day",
-      "outputType" : "individual",
-      "valueType"  : "value",
-      "description": "Download links for 15-day maps",
-      "name"       : "15-day maps",
-      "valueSchema": "url",
-      "target"     : "sen2gpp/Output/Maps_output_files/Maps_15.xlsx",
-      "createFolder": "true"
-    },
-    {
-      "id"         : "maps_30_day",
-      "outputType" : "individual",
-      "valueType"  : "value",
-      "description": "Download links for 30-day maps",
-      "name"       : "30-day maps",
-      "valueSchema": "url",
-      "target"     : "sen2gpp/Output/Maps_output_files/Maps_30.xlsx",
-      "createFolder": "true"
+      "target"     : "Results.zip"
     }
   ]
 }
+

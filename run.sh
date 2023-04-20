@@ -1,3 +1,8 @@
-cd e_shape_linux
+cd sen2gpp
 
-python e-shape.py
+python sen2gpp.py
+
+
+cd ..
+
+zip -r Results.zip sen2gpp/Output
