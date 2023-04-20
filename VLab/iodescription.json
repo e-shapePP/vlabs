@@ -36,11 +36,11 @@
   ],
   "outputs": [
     {
-      "id"         : "Results.zip",
+      "id"         : "Results",
       "outputType" : "individual",
       "valueType"  : "value",
       "description": "Results",
-      "name"       : "Results",
+      "name"       : "Results.zip",
       "valueSchema": "url",
       "target"     : "Results.zip"
     }
