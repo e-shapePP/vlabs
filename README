@@ -1,7 +1,7 @@
-Main code is in the e_shape_linux\e-shape.py
+Main code is in the sen2gpp\sen2gpp.py
 Input data are:
-Carbon flux data in e_shape_linux\Input\NEE\NEE.txt
-Meteorological data in e_shape_linux\Input\EV\EV.txt
+Carbon flux data in sen2gpp\Input\NEE\*.txt
+Meteorological data in sen2gpp\Input\EV\*.txt
 
 Configuration file is:
-Model parameters and variables e_shape_linux\Configs\Configuration_file.cfg
+Model parameters and variables sen2gpp\Configs\*.cfg
