@@ -8,6 +8,11 @@ First, install the environment.
 conda env create -f react_environment.yml
 ```
 
+First, install the environment.
+```
+conda env create -f react_environment.yml
+```
+
 For details on the implementation see Manual.doc file. 
 
 ## Contact
