@@ -9,9 +9,9 @@ conda env create -f e-shape_environment_linux.yaml
 conda activate Deltares_GPP_cmd
 ```
 
-Save the input data in the sen2gpp/Input/EV and sen2gpp/Input/NEE, respectively for the environmental data and Net Ecosystem Exchange data files.  z
+Save the input data in the sen2gpp/Input/EV and sen2gpp/Input/NEE, respectively for the environmental data and Net Ecosystem Exchange data files.  
 
-Save the configuration file in the sen2gpp/Configs folder as Configuration_file.cfg. Run the code sen2gpp
+Save the configuration file in the sen2gpp/Configs folder as Configuration_file.cfg. Run the code sen2gpp.
 ```
 python sen2gpp.py
 ```
