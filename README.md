@@ -6,7 +6,9 @@ The sen2gpp tool aims to performe a Spatio-Temporal Upscaling of Flux Tower Gros
 First, install the environment.
 ```
 conda env create -f react_environment.yml
+conda activate 
 ```
+
 
 First, install the environment.
 ```
