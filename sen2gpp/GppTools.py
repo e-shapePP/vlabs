@@ -1525,6 +1525,514 @@ class Gpp:
 
         plot_timeseries_vi_multiple(df_VI_export)
         return df_VI_export
+    
+
+    def calculate_VI_with_area(
+            self,
+            df, 
+            dff, 
+            carbonflux, 
+            undef, 
+            aoi, 
+            longitude,
+            latitude,
+            max_cloud_coverage,
+            ndviMask, 
+            mndviMask,
+            bands, 
+            crs,
+            ID,
+            outputdir
+    ):
+        
+        # load carbon flux file  
+        df_carbonflux = df.loc[dff[carbonflux]==0].copy(deep=True)
+        df_carbonflux.replace(undef, np.nan, inplace=True)
+        df_carbonflux = df_carbonflux.loc[df_carbonflux['USTAR']>0.1]
+        df_carbonflux.drop(df_carbonflux.tail(1).index,inplace=True) 
+        
+        # function to add date variables to DataFrame.
+        def add_date_info(df):
+
+            df['Timestamp'] = pd.to_datetime(df['TIMESTAMP_END']) 
+            df['Year'] = pd.DatetimeIndex(df['Timestamp']).year
+            df['Month'] = pd.DatetimeIndex(df['Timestamp']).month
+            df['Day'] = pd.DatetimeIndex(df['Timestamp']).day
+            df['Hour'] = pd.DatetimeIndex(df['Timestamp']).hour
+            df['Minute'] = pd.DatetimeIndex(df['Timestamp']).minute
+
+            return df
+        
+        # add date and labels info
+        df_ffp  = add_date_info(df_carbonflux.reset_index())
+        df_ffp  = df_ffp.dropna(subset=['Year'])
+        
+        # create a only file per year identified in the input files
+        years = df_ffp['Year'].unique().tolist()
+
+        # # create aoi
+        # lon_lat         =  [longitude, latitude]
+        # point = ee.Geometry.Point(lon_lat)
+        # aoi  = point.buffer(fetch)
+
+        # create range according to data in the input datafiles   
+        start   = '%s-01-01'   %(years[0])                                              #2017-05-12 starts frequency of 10 days                                               
+        end     = '%s-12-31'   %(years[-1])                                             #2017-12-18 starts frequency of 5 days
+        timeSD  = [start, end]
+
+        # create coordinates of the eddy covariance tower
+        lon_lat         =  [longitude, latitude]         
+        point = ee.Geometry.Point(lon_lat)
+
+        # collections google earth engine    
+        COPERNICUS_S2_L2A = 'COPERNICUS/S2_SR_HARMONIZED'        #Multi-spectral surface reflectances (https://developers.google.com/earth-engine/datasets/catalog/COPERNICUS_S2_SR)
+        MODIS_temp        = 'MODIS/006/MOD11A1'                  #Land surface temperature (https://developers.google.com/earth-engine/datasets/catalog/MODIS_006_MOD11A1)
+        USAID_prec        = 'UCSB-CHG/CHIRPS/DAILY'              #InfraRed Precipitation with Station dat (https://developers.google.com/earth-engine/datasets/catalog/UCSB-CHG_CHIRPS_DAILY)
+        MODIS_GPP         = 'MODIS/006/MOD17A2H'                 #Gross primary productivity(https://developers.google.com/earth-engine/datasets/catalog/MODIS_006_MOD17A2H)
+        MODIS_NPP         = 'MODIS/006/MOD17A3HGF'               #Net primary productivity (https://developers.google.com/earth-engine/datasets/catalog/MODIS_006_MOD17A3HGF)
+
+        # bands of the EO products used in the analysis
+        # image.bandNames().getInfo() can be used to request bands of colections as well
+        COPERNICUS_S2_bands = ['B1', 'B2', 'B3', 'B4', 'B5', 'B6', 'B7', 'B8', 'B8A', 'B9', 'B11', 'B12', 'AOT', 'WVP', 'SCL', 'TCI_R', 'TCI_G', 'TCI_B', 'QA10', 'QA20', 'QA60']
+        MODIS_temp_bands    = ['LST_Day_1km','QC_Day','Day_view_time','Day_view_angle','LST_Night_1km','QC_Night','Night_view_time','Night_view_angle','Emis_31','Emis_32','Clear_day_cov','Clear_night_cov']
+        USAID_prec_bands    = ['precipitation']
+        MODIS_GPP_bands     = ['Gpp', 'PsnNet', 'Psn_QC']
+        MODIS_NPP_bands     = ['Npp', 'Npp_QC']
+
+        # function to load data set with specified period and location
+        def load_catalog(catalog, time, location, bands):
+            dataset = ee.ImageCollection(catalog).filterDate(time[0],time[1]).filterBounds(location).select(bands)
+            return dataset
+
+        # cloud coverage filter function
+        def cloud_filter(collection, cloud_coverage_metadata_name, threshold):
+            collection_cf = collection.filterMetadata(cloud_coverage_metadata_name,'less_than', threshold)
+            return collection_cf
+
+        # function to derive VIs
+        def calculateVI(image):
+            '''This method calculates different vegetation indices in a image collection and adds their values as new bands'''
+
+            # defining dictionary of bands Sentinel-2 
+            dict_bands = {
+
+                "blue"  :  'B2',                              #Blue band                        
+                "green" :  'B3',                              #Green band
+                "red"   :  'B4',                              #Red band
+                "red1"  :  'B5',                              #Red-edge spectral band   
+                "red2"  :  'B6',                              #Red-edge spectral band
+                "red3"  :  'B7',                              #Red-edge spectral band    
+                "NIR"   :  'B8',                              #Near-infrared band
+                "NIRn"  :  'B8A',                             #Near-infrared narrow
+                "WV"    :  'B9',                              #Water vapour
+                "SWIR1" :  'B11',                             #Short wave infrared 1
+                "SWIR2" :  'B12',                             #Short wave infrared 2
+            }
+
+            # specify bands 
+            dict  = dict_bands
+            blue  = dict["blue"]                              #Blue band                        
+            green = dict["green"]                             #Green band
+            red   = dict["red"]                               #Red band
+            red1  = dict["red1"]                              #Red-edge spectral band    
+            red2  = dict["red2"]                              #Red-edge spectral band
+            red3  = dict["red3"]                              #Red-edge spectral band
+            NIR   = dict["NIR"]                               #Near-infrared band
+            NIRn  = dict["NIRn"]                              #Near-infrared band
+            WV    = dict["WV"]                                #Water vapour
+            SWIR1 = dict["SWIR1"]                             #Short wave infrared 1
+            SWIR2 = dict["SWIR2"]                             #Short wave infrared 2
+
+            bands_for_expressions = {
+
+                'blue'  : image.select(blue).divide(10000),
+                'green' : image.select(green).divide(10000), 
+                'red'   : image.select(red).divide(10000),
+                'red1'  : image.select(red1).divide(10000), 
+                'red2'  : image.select(red2).divide(10000),
+                'red3'  : image.select(red3).divide(10000), 
+                'NIR'   : image.select(NIR).divide(10000),
+                'NIRn'  : image.select(NIRn).divide(10000),
+                'WV'    : image.select(WV).divide(10000),
+                'SWIR1' : image.select(SWIR1).divide(10000),
+                'SWIR2' : image.select(SWIR2).divide(10000)}
+
+            # greeness related indices
+            # NDVI                                                                            (Rouse et al., 1974)
+            NDVI  = image.normalizedDifference([NIR, red]).rename("NDVI") 
+
+            # EVI                                                                             
+            EVI   = image.expression('2.5*(( NIR - red ) / ( NIR + 6 * red - 7.5 * blue + 1 ))', 
+                    bands_for_expressions).rename("EVI")
+            # EVI2                                                                            (Jiang et al., 2008)
+            EVI2  = image.expression('2.5*(( NIR - red ) / ( NIR + 2.4 * red + 1 ))', 
+                    bands_for_expressions).rename("EVI2")
+
+            # greeness related indices with Sentinel-2 narrow bands / Red-edge
+            # Clr
+            CLr  = image.expression('(red3/red1)-1', bands_for_expressions).rename("CLr")
+            # Clg
+            Clg  = image.expression('(red3/green)-1', bands_for_expressions).rename("CLg")
+            # MTCI
+            MTCI = image.expression('(red2-red1)/(red1-red)', bands_for_expressions).rename("MTCI")
+            # MNDVI                                                                          (Add reference)
+            MNDVI = image.normalizedDifference([red3, red1]).rename("MNDVI")    
+
+            # water related indices
+            # MNDWI                                                                          (Add reference)
+            MNDWI = image.normalizedDifference([green, SWIR1]).rename("MNDWI")    
+            # NDWI OR LSWI or NDII or NDMI                                                    (Add reference)
+            LSWI  = image.normalizedDifference([NIR, SWIR1]).rename("LSWI")
+            # NDII                                                                            (Hunt & Qu, 2013)
+            NDII   = image.normalizedDifference([NIR, SWIR2]).rename("NDII")
+
+            image1 = image.addBands(NDVI).addBands(EVI).addBands(EVI2)
+            image2 = image1.addBands(CLr).addBands(Clg).addBands(MTCI).addBands(MNDVI)
+            image3 = image2.addBands(MNDWI).addBands(LSWI).addBands(NDII)
+
+            return image3  
+        
+        def local_cloud_filter(s2, aoi, LOCAL_CLOUD_THRESH):
+
+            # Describe functions
+            # Function to scale the reflectance bands
+            def apply_scale_factors_s2(image):
+                optical_bands = image.select(['B.']).divide(10000)
+                thermal_bands = image.select(['B.*']).divide(10000)
+                return image.addBands(optical_bands, None, True).addBands(thermal_bands, None, True)
+
+            # Function to create mask with cirrus clouds and cirrus pixels
+            def extract_bit_s2_10_11(image):
+                bit_position_clouds = 10
+                bit_position_cirrus = 11
+
+                # Bits 10 and 11 are clouds and cirrus, respectively.
+                cloud_bit_mask = 1 << bit_position_clouds
+                cirrus_bit_mask = 1 << bit_position_cirrus
+
+                mask_clouds = image.bitwiseAnd(cloud_bit_mask).rightShift(bit_position_clouds)
+                mask_cirrus = image.bitwiseAnd(cirrus_bit_mask).rightShift(bit_position_cirrus)
+                mask = mask_clouds.add(mask_cirrus)
+                return mask
+
+            # Function to mask pixels with high reflectance in the blue (B2) band. The function creates a QA band
+            def b2_mask(image):
+                B2Threshold = 0.2
+                B2Mask = image.select('B2').gt(B2Threshold)
+                return image.addBands(B2Mask.rename('B2Mask'))
+
+            # Function to create a band with ones
+            def make_ones(image):
+                # Create a band with ones
+                ones_band = image.select('B2').divide(image.select('B2'))
+                return image.addBands(ones_band.rename('Ones'))
+
+            # Function to calculate area
+            def get_area(img):
+                cloud_area = make_ones(img).select('Ones').multiply(ee.Image.pixelArea()) \
+                    .reduceRegion(reducer=ee.Reducer.sum(), geometry=aoi, scale=30).values().get(0)
+                return img.set('area_image', ee.Number(cloud_area))
+
+            # Function to get local cloud percentage with QA band
+            def get_local_cloud_percentage(img):
+                cloud_area = extract_bit_s2_10_11(img.select('QA60')).multiply(ee.Image.pixelArea()) \
+                    .reduceRegion(reducer=ee.Reducer.sum(), geometry=aoi, scale=60).values().get(0)
+                return img.set('local_cloud_percentage', ee.Number(cloud_area).divide(aoi.area()).multiply(100).round())
+
+            # Function to get local cloud percentage with QA and area of image band
+            def get_local_cloud_percentage_area_image(img):
+                area_image = img.get('area_image')
+                cloud_area = extract_bit_s2_10_11(img.select('QA60')).multiply(ee.Image.pixelArea()) \
+                    .reduceRegion(reducer=ee.Reducer.sum(), geometry=aoi, scale=60).values().get(0)
+                return img.set('local_cloud_percentage_ai', ee.Number(cloud_area).divide(ee.Number(area_image)).multiply(100).round())
+
+            # Function to get local cloud percentage with B2 and area of image band
+            def get_local_cloud_percentage_area_image_b2(img):
+                area_image = img.get('area_image')
+                cloud_area = b2_mask(img).select('B2Mask').multiply(ee.Image.pixelArea()) \
+                    .reduceRegion(reducer=ee.Reducer.sum(), geometry=aoi, scale=60).values().get(0)
+                return img.set('local_cloud_percentage_ai_b2', ee.Number(cloud_area).divide(ee.Number(area_image)).multiply(100).round())
+
+            def add_ndvi(image):
+                # Calculate NDVI
+                ndvi = image.normalizedDifference(['B8', 'B4']).rename('NDVI')
+                return image.addBands(ndvi)
+
+            s2 = s2.filterBounds(aoi).map(lambda image: image.clip(aoi)).map(apply_scale_factors_s2).map(add_ndvi)
+            
+            # Processing
+            # Mask with band 2
+            extractedBitB2 = s2.select('B2').map(b2_mask)
+            # Mask with QA60 band
+            extractedBit = s2.select('QA60').map(extract_bit_s2_10_11)
+            # Band with ones
+            extractedBitones = s2.map(make_ones)
+            # Calculate area
+            s2 = s2.map(get_area)
+            # Calculate local cloud percentage with QA band
+            s2 = s2.map(get_local_cloud_percentage)
+            # Calculate local cloud percentage with QA band and area image band
+            s2 = s2.map(get_local_cloud_percentage_area_image)
+            # Calculate local cloud percentage with B2 band and area image band
+            s2 = s2.map(get_local_cloud_percentage_area_image_b2)
+            # Filter images
+            # LOCAL_CLOUD_THRESH = 30
+            s2_filtered = s2.filter(ee.Filter.lte('local_cloud_percentage_ai', LOCAL_CLOUD_THRESH))
+            s2_filtered = s2_filtered.filter(ee.Filter.lte('local_cloud_percentage_ai_b2', LOCAL_CLOUD_THRESH))
+
+            # Show messages
+            print('The original size of the collection is', s2.size().getInfo())
+            # print(s2.first().getInfo())
+            print('The filtered size of the collection is', s2_filtered.size().getInfo())
+            print('\n')
+            
+            return s2_filtered 
+
+        # function for masking non-vegetation areas
+        def maskS2nonvegetation(image):
+
+                qa    = image.select('QA60')
+                scl   = image.select('SCL')
+                ndvi  = image.select('NDVI')
+                mndvi = image.select('MNDVI')
+
+                cloudBitMask = 1 << 10
+                cirrusBitMask = 1 << 11
+
+                #vegetationMask1 = 4 # vegetation
+                #vegetationMask2 = 5 # non-vegetated
+                #vegetationMask3 = 6 # water
+                #vegetationMask4 = 7 # unclassified
+                #vegetationMask5 = 11 # snow
+
+                # this mask selects vegetation + non-vegetated + water + unclassified + areas with VIs (NDVI and MNDVI) greater that a threshold set in the configuration file
+                #mask = scl.eq(4).Or(scl.eq(5)).Or(scl.eq(6)).Or(scl.eq(7)).And(qa.bitwiseAnd(cloudBitMask).eq(0)).And(qa.bitwiseAnd(cirrusBitMask).eq(0)).And(ndvi.gte(ndviMask)).And(mndvi.gte(mndviMask))
+                mask = scl.eq(4).Or(scl.eq(5)).Or(scl.eq(6)).Or(scl.eq(7)).Or(scl.eq(11)).And(qa.bitwiseAnd(cloudBitMask).eq(0)).And(qa.bitwiseAnd(cirrusBitMask).eq(0)).And(ndvi.gte(ndviMask)).And(mndvi.gte(mndviMask))
+                #mask = scl.gte(4).And(qa.bitwiseAnd(cloudBitMask).eq(0)).And(qa.bitwiseAnd(cirrusBitMask).eq(0)).And(ndvi.gte(ndviMask)).And(mndvi.gte(mndviMask))
+                #mask = scl.eq(4).Or(scl.eq(5)).Or(scl.eq(6)).Or(scl.eq(7)).And(mndvi.gte(0.05)) 
+
+                vegetation = image.updateMask(mask)
+
+                return vegetation
+
+        # function to transform ee objects to dataframes pandas objects
+        # function that transforms arrays into dataframes
+        def ee_array_to_df(imagecollection, geometry, scale):
+
+            """Transforms client-side ee.Image.getRegion array to pandas.DataFrame."""
+
+            # select bands from the image collection
+            filtered = imagecollection.select(bands)
+
+            # function that produce functions to reduce a region with atatistics (mean, max, min, etc.)
+            def create_reduce_region_function(geometry,
+                                                reducer=ee.Reducer.mean(),
+                                                scale=1000,
+                                                crs=crs,
+                                                bestEffort=True,
+                                                maxPixels=1e13,
+                                                tileScale=4):
+
+                    def reduce_region_function(img):
+
+                        stat = img.reduceRegion(
+                            reducer=reducer,
+                            geometry=geometry,
+                            scale=scale,
+                            crs=crs,
+                            bestEffort=bestEffort,
+                            maxPixels=maxPixels,
+                            tileScale=tileScale)
+
+                        return ee.Feature(geometry, stat).set({'millis': img.date().millis()})
+                    return reduce_region_function
+
+            # function to transfer feature properties to a dictionary.
+            def fc_to_dict(fc):
+                    prop_names = fc.first().propertyNames()
+                    prop_lists = fc.reduceColumns(reducer=ee.Reducer.toList().repeat(prop_names.size()),selectors=prop_names).get('list')
+
+                    return ee.Dictionary.fromLists(prop_names, prop_lists)
+
+            # creating reduction function (reduce_VI is a function)
+            reduce_VI = create_reduce_region_function(
+                geometry= geometry, reducer=ee.Reducer.mean(), scale=10, crs= crs)
+
+            # transform image collection into feature collection (tables)
+            VI_stat_fc = ee.FeatureCollection(imagecollection.map(reduce_VI)).filter(
+                ee.Filter.notNull(imagecollection.first().bandNames()))
+
+            # transform feature collection into dictionary object
+            VI_dict = fc_to_dict(VI_stat_fc).getInfo()
+
+            #print(type(VI_dict), '\n')
+
+            #for prop in VI_dict.keys():
+            #    print(prop + ':', VI_dict[prop][0:3] + ['...'])
+
+            # transform dictionary into dataframe
+            VI_df = pd.DataFrame(VI_dict)
+
+            # convert column in datatime type object
+            #VI_df['datetime'] = pd.to_datetime(VI_df['time'], unit='ms')
+            VI_df['date']     = pd.to_datetime(VI_df['millis'], unit='ms').dt.date
+
+            # generate a list with the names of each band of the collection 
+            list_of_bands = filtered.first().bandNames().getInfo()
+
+            # remove rows without data inside.
+            VI_df = VI_df[['date', *list_of_bands]].dropna()
+
+            # convert the data to numeric values.
+            for band in list_of_bands:
+                VI_df[band] = pd.to_numeric(VI_df[band], errors='coerce', downcast ='float')
+
+            # convert the time field into a datetime.
+            #VI_df['datetime'] = pd.to_datetime(VI_df['time'], unit='ms')
+            #VI_df['date']     = pd.to_datetime(VI_df['time'], unit='ms').dt.date
+
+            # keep the columns of interest.
+            #VI_df = VI_df[['datetime','date',  *list_of_bands]]
+
+            # flag to identify if in the reduction there were pixels, or they were masked-removed
+            VI_df['flag'] = 100
+
+            # reduction in case there are two pixels from different images for the same day
+            VI_df = VI_df.groupby('date').mean().reset_index().set_index('date').copy()
+
+            return VI_df
+
+        # applying functions 
+
+        # request of catalogues 
+        S2     = load_catalog(COPERNICUS_S2_L2A, timeSD, point, COPERNICUS_S2_bands)
+        temp   = load_catalog(MODIS_temp,        timeSD, point, MODIS_temp_bands)
+        prec   = load_catalog(USAID_prec,        timeSD, point, USAID_prec_bands)
+        gpp_MODIS    = load_catalog(MODIS_GPP,         timeSD, point, MODIS_GPP_bands)
+        npp_MODIS    = load_catalog(MODIS_NPP,         timeSD, point,  MODIS_NPP_bands)
+
+        # calculation of vegetation indices for the collection
+        S2_VI = S2.map(calculateVI)
+
+        # # filter cloud coverage
+        # cloud_coverage_metadata_name = 'CLOUDY_PIXEL_PERCENTAGE'                     # name of metadata property indicating cloud coverage in %
+
+        # # applying cloud filter 
+        # S2_VI = cloud_filter(S2_VI, cloud_coverage_metadata_name, max_cloud_coverage)   # max cloud coverage defined in the Config file
+
+        # apply cloud local filter
+        S2_VI = local_cloud_filter(S2_VI, aoi, max_cloud_coverage)
+
+        # applying mask 
+        S2_VI = S2_VI.map(maskS2nonvegetation)
+
+        # select bands for the analysis of interdependency and regression models 
+        #bands = ['NDVI','EVI','EVI2','CLr','CLg','MTCI','MNDVI','MNDWI','LSWI','NDII']
+        # bands = ['NDVI','EVI','EVI2','CLr','MNDVI','MNDWI','LSWI','NDII', 'B1', 'B2', 'B3', 'B4', 'B5', 'B6', 'B7', 'B8', 'B8A', 'B9', 'B11', 'B12']
+
+        # applying funtion ee_array_to_df to the defined geometry
+        S2_VI_df_aux  = ee_array_to_df(S2_VI, aoi, 10) 
+        S2_VI_df_aux = S2_VI_df_aux.groupby(S2_VI_df_aux.index).sum().rename_axis('date')
+
+
+        # loop to join each S2_VI_df in a single dataframe per year named as df_VI
+        df_VI = pd.DataFrame(columns=bands)
+
+
+        def add_date_info(df):
+
+            df = df.reset_index()
+            df['date'] = pd.to_datetime(df['date'])
+            df['Year'] = pd.DatetimeIndex(df['date']).year
+
+            def timestamp(df):
+                df = df.timestamp()
+                return df
+
+            df['timestamp'] = df['date'].apply(timestamp)
+            df = df.set_index('date')
+
+            return df
+
+        df_VI  = add_date_info(S2_VI_df_aux).rename_axis('date')
+
+        # filtering VI_eshape by flag. Removes dates when there were areas whitin the climatological footprint that were totally masked 
+        df_VI_filtered = df_VI.copy()
+        df_VI_filtered = df_VI_filtered[df_VI_filtered['flag']>80].drop(['flag'], axis = 1)
+
+        # create time series with daily frequency
+        time_series = pd.date_range(start=start, end=end, freq="D")
+        time_series = pd.DataFrame(time_series).rename(columns={0: 'date'}).set_index('date')
+
+        # allows to have a time series with daily frequency with gaps when the VI were not calculated or there were not S2 images
+        df_VI_time = pd.merge(left= time_series, right = df_VI_filtered,
+                                        how="left", left_index = True , right_index = True)  
+
+        # interpolate values
+        df_VI_interpolate = df_VI_time.interpolate(method='akima', order=1, limit_direction ='forward')
+        #df_VI_interpolate_limits = df_VI_interpolate.apply(lambda x: x.interpolate(method="spline", order=6))
+        #df_VI_interpolate = df_VI_interpolate.fillna(method='backfill')
+        #df_VI_interpolate = df_VI_interpolate.fillna(method='ffill')
+
+        # file to extrapolate
+        df_VI_export = df_VI_interpolate.dropna().drop(['Year','timestamp'], axis = 1) 
+        df_VI_export.to_csv(outputdir + '/VI_output/' + ID + "_Vegetation_indices.csv")   
+
+        print("       Exporting: Vegetation_indices.csv")
+        print('\n') 
+
+        #---------------------------------------------------------------------------------------------
+        # Save plots of VI
+        def plot_timeseries_vi_multiple(df):
+            # subplots.
+            fig, ax = plt.subplots(figsize=(14, 6)) #Indicates the size of the plot
+
+            if 'NDVI' in bands:
+                # add scatter plots //Adds the scatter points
+                ax.plot(df['NDVI'],
+                            c='#00FF00', alpha=1, label='NDVI', lw=2, linestyle = ':')
+            if 'EVI' in bands:
+                ax.plot(df['EVI'],
+                            c='red', alpha=1, label='EVI', lw=2, linestyle = ':')
+            if 'EVI2' in bands:
+                ax.plot(df['EVI2'],
+                            c='yellow', alpha=1, label='EVI-2', lw=2, linestyle = ':')
+            if 'CLr' in bands:
+                ax.plot(df['CLr'],
+                            c='green', alpha=1, label='CLr', lw=2, linestyle = ':')
+            if 'MNDVI' in bands:
+                ax.plot(df['MNDVI'],
+                            c='black', alpha=1, label='MNDVI', lw=2, linestyle = ':')
+            if 'MNDWI' in bands:
+                ax.plot(df['MNDWI'],
+                            c='#00FFFF', alpha=0.5, label='MNDWI', lw=2, linestyle = '-.')
+            if 'LSWI' in bands:
+                ax.plot(df['LSWI'],
+                            c='blue', alpha=0.8, label='LSWI', lw=2, linestyle = '-.')
+            if 'NDII' in bands:
+                ax.plot(df['NDII'],
+                            c='#00008B', alpha=0.8, label='NDII', lw=2, linestyle = '-.') #marker="x", markersize=2)
+
+            ax.set_title('Vegetation Indices', fontsize=16)
+            ax.set_xlabel('Date', fontsize=14)
+            ax.set_ylabel('Vegetation Index', fontsize=14)
+            ax.set_ylim(-1, 1)
+            ax.grid(lw=0.5)
+            ax.legend(fontsize=14, loc='lower right')
+
+            # shrink current axis by 20%
+            box = ax.get_position()
+            ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
+
+            # put a legend to the right of the current axis
+            ax.legend(loc='center left', bbox_to_anchor=(1, .8))
+            #plt.savefig(outputdir + '/VI_output/' + ID + '_VI_timeseries.png', dpi=300, format='png', bbox_inches='tight',pad_inches=0.0001)
+            plt.savefig(outputdir + '/VI_output/' + ID + '_VI_timeseries.png', dpi=300)
+
+            return plt #.show()
+
+        plot_timeseries_vi_multiple(df_VI_export)
+        return df_VI_export
 
     def read_VI(self, outputdir, ID):
 
