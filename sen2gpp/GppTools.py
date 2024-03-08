@@ -1607,6 +1607,12 @@ class Gpp:
         # cloud coverage filter function
         def cloud_filter(collection, cloud_coverage_metadata_name, threshold):
             collection_cf = collection.filterMetadata(cloud_coverage_metadata_name,'less_than', threshold)
+            # Show messages
+            print('The maximun cloud coverage in the image is:', max_cloud_coverage)
+            print('The original size of the collection is', collection.size().getInfo())
+            # print(s2.first().getInfo())
+            print('The filtered size of the collection is', collection_cf.size().getInfo())
+            print('\n')
             return collection_cf
 
         # function to derive VIs
@@ -1781,6 +1787,7 @@ class Gpp:
             s2_filtered = s2_filtered.filter(ee.Filter.lte('local_cloud_percentage_ai_b2', LOCAL_CLOUD_THRESH))
 
             # Show messages
+            print('The maximun cloud coverage in the area is:', max_cloud_coverage)
             print('The original size of the collection is', s2.size().getInfo())
             # print(s2.first().getInfo())
             print('The filtered size of the collection is', s2_filtered.size().getInfo())
@@ -1914,14 +1921,14 @@ class Gpp:
         # calculation of vegetation indices for the collection
         S2_VI = S2.map(calculateVI)
 
-        # # filter cloud coverage
-        # cloud_coverage_metadata_name = 'CLOUDY_PIXEL_PERCENTAGE'                     # name of metadata property indicating cloud coverage in %
+        # filter cloud coverage
+        cloud_coverage_metadata_name = 'CLOUDY_PIXEL_PERCENTAGE'                     # name of metadata property indicating cloud coverage in %
 
-        # # applying cloud filter 
-        # S2_VI = cloud_filter(S2_VI, cloud_coverage_metadata_name, max_cloud_coverage)   # max cloud coverage defined in the Config file
+        # applying cloud filter 
+        S2_VI = cloud_filter(S2_VI, cloud_coverage_metadata_name, max_cloud_coverage)   # max cloud coverage defined in the Config file
 
         # apply cloud local filter
-        S2_VI = local_cloud_filter(S2_VI, aoi, max_cloud_coverage)
+        # S2_VI = local_cloud_filter(S2_VI, aoi, max_cloud_coverage)
 
         # applying mask 
         S2_VI = S2_VI.map(maskS2nonvegetation)
