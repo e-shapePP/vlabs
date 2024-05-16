@@ -190,6 +190,7 @@ class Gpp:
             self.bands[i] = str(self.bands[i])
         
         self.max_cloud_coverage              = config['VI'].getint('max_cloud_coverage',         100)           #Default: No filter, all images available.
+        self.local_cloud_coverage            = config['VI'].getint('local_cloud_coverage',         100)           #Default: No filter, all images available.
         self.crs                             = config['VI'].get('crs',                            '')           #EPSG:4326
         self.ndviMask                        = config['VI'].getfloat('ndviMask',                -100)           #Default: No mask
         self.mndviMask                       = config['VI'].getfloat('mndviMask',               -100)           #Default: No mask
@@ -1542,7 +1543,8 @@ class Gpp:
             bands, 
             crs,
             ID,
-            outputdir
+            outputdir,
+            local_cloud_coverage
     ):
         
         # load carbon flux file  
@@ -1787,7 +1789,7 @@ class Gpp:
             s2_filtered = s2_filtered.filter(ee.Filter.lte('local_cloud_percentage_ai_b2', LOCAL_CLOUD_THRESH))
 
             # Show messages
-            print('The maximun cloud coverage in the area is:', max_cloud_coverage)
+            print('The maximun cloud coverage in the area is:', LOCAL_CLOUD_THRESH)
             print('The original size of the collection is', s2.size().getInfo())
             # print(s2.first().getInfo())
             print('The filtered size of the collection is', s2_filtered.size().getInfo())
@@ -1928,7 +1930,7 @@ class Gpp:
         S2_VI = cloud_filter(S2_VI, cloud_coverage_metadata_name, max_cloud_coverage)   # max cloud coverage defined in the Config file
 
         # apply cloud local filter
-        # S2_VI = local_cloud_filter(S2_VI, aoi, max_cloud_coverage)
+        S2_VI = local_cloud_filter(S2_VI, aoi, local_cloud_coverage)
 
         # applying mask 
         S2_VI = S2_VI.map(maskS2nonvegetation)
