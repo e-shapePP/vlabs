@@ -667,8 +667,8 @@ class Gpp:
         gpp = gpp[(gpp[carbonflux+'_f'] < carbonfluxlimit) & (gpp[carbonflux+'_f'] > -carbonfluxlimit)]                                                           
         gpp = gpp[(gpp[rei_res+'_f'] < respirationlimit) & (gpp[rei_res+'_f'] > -respirationlimit)] 
 
-        gpp_mean = gpp[['TA_f','VPD_f','SW_IN_f', 'RH']] 
-        gpp_sum  = gpp[['P', carbonflux+'_f',rei_gpp+'_f',rei_res+'_f',fal_gpp+'_f',fal_res+'_f',las_gpp+'_f',las_res+'_f']] * 12 * 30 * 60 /1000000
+        gpp_mean = gpp[['TA_f','VPD_f','SW_IN_f']]
+        gpp_sum  = gpp[[carbonflux+'_f',rei_gpp+'_f',rei_res+'_f',fal_gpp+'_f',fal_res+'_f',las_gpp+'_f',las_res+'_f']] * 12 * 30 * 60 /1000000
 
         gpp_mean = gpp_mean.reset_index()
         gpp_sum  = gpp_sum.reset_index()
@@ -1448,7 +1448,6 @@ class Gpp:
         print('       Creating df_VI')
         print('\n') 
 
-
         # filtering VI_eshape by flag. Removes dates when there were areas whitin the climatological footprint that were totally masked 
         df_VI_filtered = df_VI.copy()
         df_VI_filtered = df_VI_filtered[df_VI_filtered['flag']>80].drop(['flag'], axis = 1)
@@ -1936,8 +1935,7 @@ class Gpp:
 
         # select bands for the analysis of interdependency and regression models 
         #bands = ['NDVI','EVI','EVI2','CLr','CLg','MTCI','MNDVI','MNDWI','LSWI','NDII']
-        # uncomment the following line to include the bands in the analysis
-        bands = ['NDVI','EVI','EVI2','CLr','MNDVI','MNDWI','LSWI','NDII', 'B1', 'B2', 'B3', 'B4', 'B5', 'B6', 'B7', 'B8', 'B8A', 'B9', 'B11', 'B12']
+        # bands = ['NDVI','EVI','EVI2','CLr','MNDVI','MNDWI','LSWI','NDII', 'B1', 'B2', 'B3', 'B4', 'B5', 'B6', 'B7', 'B8', 'B8A', 'B9', 'B11', 'B12']
 
         # applying funtion ee_array_to_df to the defined geometry
         S2_VI_df_aux  = ee_array_to_df(S2_VI, aoi, 10) 
@@ -1976,14 +1974,12 @@ class Gpp:
         # allows to have a time series with daily frequency with gaps when the VI were not calculated or there were not S2 images
         df_VI_time = pd.merge(left= time_series, right = df_VI_filtered,
                                         how="left", left_index = True , right_index = True)  
-        
 
         # interpolate values
         df_VI_interpolate = df_VI_time.interpolate(method='akima', order=1, limit_direction ='forward')
         #df_VI_interpolate_limits = df_VI_interpolate.apply(lambda x: x.interpolate(method="spline", order=6))
         #df_VI_interpolate = df_VI_interpolate.fillna(method='backfill')
         #df_VI_interpolate = df_VI_interpolate.fillna(method='ffill')
-
 
         # file to extrapolate
         df_VI_export = df_VI_interpolate.dropna().drop(['Year','timestamp'], axis = 1) 
