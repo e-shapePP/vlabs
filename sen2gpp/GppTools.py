@@ -1970,6 +1970,40 @@ class Gpp:
             return plt #.show()
 
         plot_timeseries_vi_multiple(df_VI_export)
+
+        #---------------------------------------------------------------------------------------------
+        # Save plots of VI
+        def plot_timeseries_vi_multiple(df, dfraw, vi):
+            # subplots.
+            fig, ax = plt.subplots(figsize=(14, 6)) #Indicates the size of the plot
+
+            ax.plot(df[vi],
+                        c='green', alpha=1, label=vi, lw=2, linestyle = ':')
+            
+            # Add scatter plot for the original data points
+            ax.scatter(dfraw.index, dfraw[vi], c='red', alpha=0.6, label=f'Original {vi}', marker='o')
+
+            ax.set_title(vi + ' '+ ID, fontsize=16)
+            ax.set_xlabel('Date', fontsize=14)
+            ax.set_ylabel(vi, fontsize=14)
+            # ax.set_ylim(-2, 2)
+            ax.grid(lw=0.5)
+            ax.legend(fontsize=14, loc='lower right')
+
+            # shrink current axis by 20%
+            box = ax.get_position()
+            ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
+
+            # put a legend to the right of the current axis
+            ax.legend(loc='center left', bbox_to_anchor=(1, .8))
+            #plt.savefig(outputdir + '/VI_output/' + ID + '_VI_timeseries.png', dpi=300, format='png', bbox_inches='tight',pad_inches=0.0001)
+            plt.savefig(outputdir + '/VI_output/' + ID + '_'+ vi + '_timeseries.png', dpi=300)
+
+            return plt #.show()
+
+        for i in bands:
+            plot_timeseries_vi_multiple(S2_VI_df_interpolate, S2_VI_df, i)
+
         return df_VI_export
 
     def calculate_VI_with_area(
