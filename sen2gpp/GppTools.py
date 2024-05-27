@@ -15,6 +15,8 @@ from pyproj import Proj
 import FFP_Python.calc_footprint_FFP_climatology as ffpmodule
 import ee
 import matplotlib.pyplot as plt
+from scipy import stats
+from scipy.signal import savgol_filter
 
 class Gpp:
     def __init__(self):
@@ -588,7 +590,6 @@ class Gpp:
             dff[colout[cc]] = dff[colin[cc]]
 
         return df, dff 
-    
     
     def write_gpp_files(self, df, dff, configfilepath,ID, outputdir, outputfile, outputname, tkelvin, vpdpa, undef, outundef, outflagcols):
 
@@ -1870,6 +1871,44 @@ class Gpp:
             df = df.set_index('date')
 
             return df
+        
+        # Function to remove outliers in all columns of a DataFrame
+        def remove_outliers(df, z_thresh=3):
+            df_copy = df.copy()
+            # Create a mask for all True values initially
+            mask = pd.Series([True] * len(df_copy), index=df_copy.index)
+            for column in df_copy.columns:
+                # Calculate the Z-scores of the column
+                z_scores = np.abs(stats.zscore(df_copy[column].dropna()))
+                # Create a mask for the current column
+                column_mask = (z_scores < z_thresh)
+                # Update the overall mask with AND operation to keep only rows where all columns are within the threshold
+                mask &= column_mask.reindex(df_copy.index, fill_value=False)
+            # Return the DataFrame with rows where all columns are within the threshold
+            return df_copy[mask]
+
+        # Function to remove outliers in all columns of a DataFrame based on time windows
+        def remove_outliers_time_window(df, window_size=5, threshold=3):
+            df_copy = df.copy()
+            for column in df_copy.columns:
+                rolling_mean = df_copy[column].rolling(window=window_size, min_periods=1).mean()
+                rolling_std = df_copy[column].rolling(window=window_size, min_periods=1).std()
+                lower_bound = rolling_mean - threshold * rolling_std
+                upper_bound = rolling_mean + threshold * rolling_std
+                outliers = (df_copy[column] < lower_bound) | (df_copy[column] > upper_bound)
+                df_copy.loc[outliers, column] = np.nan
+            return df_copy
+
+
+        def get_daily_data(df, year_list):
+            # create time series with daily frequency
+            time_series = pd.date_range(start=str(year_list[0]), end=str(year_list[-1]+1), freq="D")
+            time_series = pd.DataFrame(time_series).rename(columns={0: 'date'}).set_index('date')
+
+            # allows to have a time series with daily frequency with gaps when the VI were not calculated or there were not S2 images
+            df_daily = pd.merge(left= time_series, right=df,
+                                            how="left", left_index = True , right_index = True) 
+            return df_daily
 
         # applying functions 
         # request of catalogues 
@@ -1905,16 +1944,39 @@ class Gpp:
         S2_VI_df = pd.merge(left= time_series, right = S2_VI_df,
                                         how="left", left_index = True , right_index = True)  
 
+
+        # Remove outliers from all columns
+        df_no_outliers_all = remove_outliers(S2_VI_df, z_thresh=2)
+        df_no_outliers_local = remove_outliers_time_window(df_no_outliers_all, window_size=7, threshold=2)
+        df_no_outliers_local_time = get_daily_data(df_no_outliers_local, year_list)
+        S2_VI_df_interpolate = df_no_outliers_local_time.interpolate(method='polynomial',order=1,  limit_direction ='forward').dropna()
+        # S2_VI_df_interpolate = df_no_outliers_local_time.interpolate(method='nearest',  limit_direction ='forward').dropna()
+
+        # Parameters for Savitzky-Golay filter
+        window_size = 30  # Must be odd
+        poly_order = 3
+
+        # Apply Savitzky-Golay filter to each column
+        S2_VI_df_filtered = S2_VI_df_interpolate.apply(lambda x: savgol_filter(x, window_size, poly_order))
+
         # file to extrapolate
         df_VI_export_raw = S2_VI_df.dropna().drop(['Year','timestamp'], axis = 1)
         df_VI_export_raw.to_csv(outputdir + '/VI_output/' + ID + "_Vegetation_indices_raw.csv") 
 
-        # interpolate values
-        S2_VI_df_interpolate = S2_VI_df.interpolate(method='akima', order=1, limit_direction ='forward')
- 
         # file to extrapolate
-        df_VI_export = S2_VI_df_interpolate.dropna().drop(['Year','timestamp'], axis = 1) 
-        df_VI_export.to_csv(outputdir + '/VI_output/' + ID + "_Vegetation_indices.csv")   
+        df_VI_export_processed = S2_VI_df_filtered.dropna().drop(['Year','timestamp'], axis = 1) 
+        df_VI_export_processed.to_csv(outputdir + '/VI_output/' + ID + "_Vegetation_indices_processed.csv")   
+
+        # # file to extrapolate
+        # df_VI_export_raw = S2_VI_df.dropna().drop(['Year','timestamp'], axis = 1)
+        # df_VI_export_raw.to_csv(outputdir + '/VI_output/' + ID + "_Vegetation_indices_raw.csv") 
+
+        # # interpolate values
+        # S2_VI_df_interpolate = S2_VI_df.interpolate(method='akima', order=1, limit_direction ='forward')
+ 
+        # # file to extrapolate
+        # df_VI_export = S2_VI_df_interpolate.dropna().drop(['Year','timestamp'], axis = 1) 
+        # df_VI_export.to_csv(outputdir + '/VI_output/' + ID + "_Vegetation_indices.csv")   
 
         print("       Exporting: Vegetation_indices.csv")
         print('\n') 
@@ -1967,21 +2029,63 @@ class Gpp:
             #plt.savefig(outputdir + '/VI_output/' + ID + '_VI_timeseries.png', dpi=300, format='png', bbox_inches='tight',pad_inches=0.0001)
             plt.savefig(outputdir + '/VI_output/' + ID + '_VI_timeseries.png', dpi=300)
 
-            return plt #.show()
+            return plt.close() #.show()
 
-        plot_timeseries_vi_multiple(df_VI_export)
+        plot_timeseries_vi_multiple(df_VI_export_processed)
+
+        # #---------------------------------------------------------------------------------------------
+        # # Save plots of VI
+        # def plot_timeseries_vi_multiple(df, dfraw, vi):
+        #     # subplots.
+        #     fig, ax = plt.subplots(figsize=(14, 6)) #Indicates the size of the plot
+
+        #     ax.plot(df[vi],
+        #                 c='green', alpha=1, label=vi, lw=2, linestyle = ':')
+            
+        #     # Add scatter plot for the original data points
+        #     ax.scatter(dfraw.index, dfraw[vi], c='red', alpha=0.6, label=f'Original {vi}', marker='o')
+
+        #     ax.set_title(vi + ' '+ ID, fontsize=16)
+        #     ax.set_xlabel('Date', fontsize=14)
+        #     ax.set_ylabel(vi, fontsize=14)
+        #     # ax.set_ylim(-2, 2)
+        #     ax.grid(lw=0.5)
+        #     ax.legend(fontsize=14, loc='lower right')
+
+        #     # shrink current axis by 20%
+        #     box = ax.get_position()
+        #     ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
+
+        #     # put a legend to the right of the current axis
+        #     ax.legend(loc='center left', bbox_to_anchor=(1, .8))
+        #     #plt.savefig(outputdir + '/VI_output/' + ID + '_VI_timeseries.png', dpi=300, format='png', bbox_inches='tight',pad_inches=0.0001)
+        #     plt.savefig(outputdir + '/VI_output/' + ID + '_'+ vi + '_timeseries.png', dpi=300)
+
+        #     return plt.close() #.show()
+
+        # for i in bands:
+        #     plot_timeseries_vi_multiple(S2_VI_df_interpolate, S2_VI_df, i)
 
         #---------------------------------------------------------------------------------------------
         # Save plots of VI
-        def plot_timeseries_vi_multiple(df, dfraw, vi):
+        def plot_timeseries_vi_multiple(dfint, dffilt, dfraw, vi):
             # subplots.
             fig, ax = plt.subplots(figsize=(14, 6)) #Indicates the size of the plot
 
-            ax.plot(df[vi],
-                        c='green', alpha=1, label=vi, lw=2, linestyle = ':')
+            ax.plot(dfint[vi],
+                        c='green', alpha=1, label=vi + ' interpolation', lw=2, linestyle = ':')
+            
+            ax.plot(dffilt[vi],
+                        c='blue', alpha=1, label=vi + ' savgol filter', lw=1, linestyle = '-')
             
             # Add scatter plot for the original data points
             ax.scatter(dfraw.index, dfraw[vi], c='red', alpha=0.6, label=f'Original {vi}', marker='o')
+
+            # Add scatter plot for the original data points
+            ax.scatter(df_no_outliers_all.index, df_no_outliers_all[vi], c='orange', alpha=0.6, label=f'No global outliers {vi}', marker='o')
+
+            # Add scatter plot for the original data points
+            ax.scatter(df_no_outliers_local_time.index, df_no_outliers_local_time[vi], c='yellow', alpha=0.6, label=f'No local outliers {vi}', marker='o')
 
             ax.set_title(vi + ' '+ ID, fontsize=16)
             ax.set_xlabel('Date', fontsize=14)
@@ -2002,9 +2106,10 @@ class Gpp:
             return plt #.show()
 
         for i in bands:
-            plot_timeseries_vi_multiple(S2_VI_df_interpolate, S2_VI_df, i)
+            plot_timeseries_vi_multiple(S2_VI_df_interpolate, S2_VI_df_filtered, S2_VI_df, i)
 
-        return df_VI_export
+
+        return S2_VI_df, df_VI_export_processed 
 
     def calculate_VI_with_area(
             self,
