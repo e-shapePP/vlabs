@@ -1953,7 +1953,7 @@ class Gpp:
         # S2_VI_df_interpolate = df_no_outliers_local_time.interpolate(method='nearest',  limit_direction ='forward').dropna()
 
         # Parameters for Savitzky-Golay filter
-        window_size = 30  # Must be odd
+        window_size = 31  # Must be odd
         poly_order = 3
 
         # Apply Savitzky-Golay filter to each column
