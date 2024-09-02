@@ -1527,6 +1527,522 @@ class Gpp:
 
         plot_timeseries_vi_multiple(df_VI_export)
         return df_VI_export
+    
+    def calculate_VI_with_area_simplified_over_time(
+            self,
+            collection,
+            year_list,
+            aoi, 
+            longitude,
+            latitude,
+            max_cloud_coverage,
+            local_cloud_coverage,
+            ndviMask, 
+            mndviMask,
+            bands, 
+            crs,
+            resolution,
+            ID,
+            outputdir,
+    ):
+                
+        # function to load data set with specified period and location
+        def load_catalog(catalog, time, location, bands):
+            dataset = ee.ImageCollection(catalog).filterDate(time[0],time[1]).filterBounds(location).select(bands)
+            return dataset
+
+        # function to derive VIs
+        def calculateVI(image):
+            '''This method calculates different vegetation indices in a image collection and adds their values as new bands'''
+
+            # defining dictionary of bands Sentinel-2 
+            dict_bands = {
+
+                "blue"  :  'B2',                              #Blue band                        
+                "green" :  'B3',                              #Green band
+                "red"   :  'B4',                              #Red band
+                "red1"  :  'B5',                              #Red-edge spectral band   
+                "red2"  :  'B6',                              #Red-edge spectral band
+                "red3"  :  'B7',                              #Red-edge spectral band    
+                "NIR"   :  'B8',                              #Near-infrared band
+                "NIRn"  :  'B8A',                             #Near-infrared narrow
+                "WV"    :  'B9',                              #Water vapour
+                "SWIR1" :  'B11',                             #Short wave infrared 1
+                "SWIR2" :  'B12',                             #Short wave infrared 2
+            }
+
+            # specify bands 
+            dict  = dict_bands
+            blue  = dict["blue"]                              #Blue band                        
+            green = dict["green"]                             #Green band
+            red   = dict["red"]                               #Red band
+            red1  = dict["red1"]                              #Red-edge spectral band    
+            red2  = dict["red2"]                              #Red-edge spectral band
+            red3  = dict["red3"]                              #Red-edge spectral band
+            NIR   = dict["NIR"]                               #Near-infrared band
+            NIRn  = dict["NIRn"]                              #Near-infrared band
+            WV    = dict["WV"]                                #Water vapour
+            SWIR1 = dict["SWIR1"]                             #Short wave infrared 1
+            SWIR2 = dict["SWIR2"]                             #Short wave infrared 2
+
+            bands_for_expressions = {
+
+                'blue'  : image.select(blue).divide(10000),
+                'green' : image.select(green).divide(10000), 
+                'red'   : image.select(red).divide(10000),
+                'red1'  : image.select(red1).divide(10000), 
+                'red2'  : image.select(red2).divide(10000),
+                'red3'  : image.select(red3).divide(10000), 
+                'NIR'   : image.select(NIR).divide(10000),
+                'NIRn'  : image.select(NIRn).divide(10000),
+                'WV'    : image.select(WV).divide(10000),
+                'SWIR1' : image.select(SWIR1).divide(10000),
+                'SWIR2' : image.select(SWIR2).divide(10000)}
+
+            # greeness related indices
+            # NDVI                                                                             (Rouse et al., 1974)
+            NDVI  = image.normalizedDifference([NIR, red]).rename("NDVI") 
+            # EVI                                                                             
+            EVI   = image.expression('2.5*(( NIR - red ) / ( NIR + 6 * red - 7.5 * blue + 1 ))', 
+                    bands_for_expressions).rename("EVI")
+            # EVI2                                                                             (Jiang et al., 2008)
+            EVI2  = image.expression('2.5*(( NIR - red ) / ( NIR + 2.4 * red + 1 ))', 
+                    bands_for_expressions).rename("EVI2")
+
+            # greeness related indices with Sentinel-2 narrow bands / Red-edge
+            # Clr
+            CLr  = image.expression('(red3/red1)-1', bands_for_expressions).rename("CLr")
+            # Clg
+            Clg  = image.expression('(red3/green)-1', bands_for_expressions).rename("CLg")
+            # MTCI
+            MTCI = image.expression('(red2-red1)/(red1-red)', bands_for_expressions).rename("MTCI")
+            # MNDVI                                                                            (Add reference)
+            MNDVI = image.normalizedDifference([red3, red1]).rename("MNDVI")    
+
+            # water related indices
+            # MNDWI                                                                            (Add reference)
+            MNDWI = image.normalizedDifference([green, SWIR1]).rename("MNDWI")    
+            # NDWI OR LSWI or NDII or NDMI                                                     (Add reference)
+            LSWI  = image.normalizedDifference([NIR, SWIR1]).rename("LSWI")
+            # NDII                                                                             (Hunt & Qu, 2013)
+            NDII   = image.normalizedDifference([NIR, SWIR2]).rename("NDII")
+
+            image = image.addBands(NDVI).addBands(EVI).addBands(EVI2)
+            image = image.addBands(CLr).addBands(Clg).addBands(MTCI).addBands(MNDVI)
+            image = image.addBands(MNDWI).addBands(LSWI).addBands(NDII)
+            return image  
+
+        # cloud coverage filter function
+        def cloud_filter(collection, cloud_coverage_metadata_name, threshold):
+            collection_cf = collection.filterMetadata(cloud_coverage_metadata_name,'less_than', threshold)
+            # Show messages
+            print('The maximun cloud coverage in the image is:', max_cloud_coverage)
+            print('The original size of the collection is', collection.size().getInfo())
+            # print(s2.first().getInfo())
+            print('The filtered size of the collection is', collection_cf.size().getInfo())
+            print('\n')
+            return collection_cf
+        
+        def local_cloud_filter(s2, aoi, LOCAL_CLOUD_THRESH):
+            # Function to scale the reflectance bands
+            def apply_scale_factors_s2(image):
+                optical_bands = image.select(['B.']).divide(10000)
+                thermal_bands = image.select(['B.*']).divide(10000)
+                return image.addBands(optical_bands, None, True).addBands(thermal_bands, None, True)
+
+            # Function to create mask with cirrus clouds and cirrus pixels
+            def extract_bit_s2_10_11(image):
+                bit_position_clouds = 10
+                bit_position_cirrus = 11
+
+                # Bits 10 and 11 are clouds and cirrus, respectively.
+                cloud_bit_mask = 1 << bit_position_clouds
+                cirrus_bit_mask = 1 << bit_position_cirrus
+
+                mask_clouds = image.bitwiseAnd(cloud_bit_mask).rightShift(bit_position_clouds)
+                mask_cirrus = image.bitwiseAnd(cirrus_bit_mask).rightShift(bit_position_cirrus)
+                mask = mask_clouds.add(mask_cirrus)
+                return mask
+
+            # Function to mask pixels with high reflectance in the blue (B2) band. The function creates a QA band
+            def b2_mask(image):
+                B2Threshold = 0.2
+                B2Mask = image.select('B2').gt(B2Threshold)
+                return image.addBands(B2Mask.rename('B2Mask'))
+
+            # Function to create a band with ones
+            def make_ones(image):
+                # Create a band with ones
+                ones_band = image.select('B2').divide(image.select('B2'))
+                return image.addBands(ones_band.rename('Ones'))
+
+            # Function to calculate area
+            def get_area(img):
+                cloud_area = make_ones(img).select('Ones').multiply(ee.Image.pixelArea()) \
+                    .reduceRegion(reducer=ee.Reducer.sum(), geometry=aoi, scale=30).values().get(0)
+                return img.set('area_image', ee.Number(cloud_area))
+
+            # Function to get local cloud percentage with QA band
+            def get_local_cloud_percentage(img):
+                cloud_area = extract_bit_s2_10_11(img.select('QA60')).multiply(ee.Image.pixelArea()) \
+                    .reduceRegion(reducer=ee.Reducer.sum(), geometry=aoi, scale=60).values().get(0)
+                return img.set('local_cloud_percentage', ee.Number(cloud_area).divide(aoi.area()).multiply(100).round())
+
+            # Function to get local cloud percentage with QA and area of image band
+            def get_local_cloud_percentage_area_image(img):
+                area_image = img.get('area_image')
+                cloud_area = extract_bit_s2_10_11(img.select('QA60')).multiply(ee.Image.pixelArea()) \
+                    .reduceRegion(reducer=ee.Reducer.sum(), geometry=aoi, scale=60).values().get(0)
+                return img.set('local_cloud_percentage_ai', ee.Number(cloud_area).divide(ee.Number(area_image)).multiply(100).round())
+
+            # Function to get local cloud percentage with B2 and area of image band
+            def get_local_cloud_percentage_area_image_b2(img):
+                area_image = img.get('area_image')
+                cloud_area = b2_mask(img).select('B2Mask').multiply(ee.Image.pixelArea()) \
+                    .reduceRegion(reducer=ee.Reducer.sum(), geometry=aoi, scale=60).values().get(0)
+                return img.set('local_cloud_percentage_ai_b2', ee.Number(cloud_area).divide(ee.Number(area_image)).multiply(100).round())
+
+            # Processing
+            s2 = s2.filterBounds(aoi).map(lambda image: image.clip(aoi)).map(apply_scale_factors_s2)
+            # Mask with band 2
+            extractedBitB2 = s2.select('B2').map(b2_mask)
+            # Mask with QA60 band
+            extractedBit = s2.select('QA60').map(extract_bit_s2_10_11)
+            # Band with ones
+            extractedBitones = s2.map(make_ones)
+            # Calculate area
+            s2 = s2.map(get_area)
+            # Calculate local cloud percentage with QA band
+            s2 = s2.map(get_local_cloud_percentage)
+            # Calculate local cloud percentage with QA band and area image band
+            s2 = s2.map(get_local_cloud_percentage_area_image)
+            # Calculate local cloud percentage with B2 band and area image band
+            s2 = s2.map(get_local_cloud_percentage_area_image_b2)
+            # Filter images
+            s2_filtered = s2.filter(ee.Filter.lte('local_cloud_percentage_ai', LOCAL_CLOUD_THRESH))
+            s2_filtered = s2_filtered.filter(ee.Filter.lte('local_cloud_percentage_ai_b2', LOCAL_CLOUD_THRESH))
+
+            print('The maximun cloud coverage in the area is:', LOCAL_CLOUD_THRESH)
+            print('The original size of the collection is', s2.size().getInfo())
+            print('The filtered size of the collection is', s2_filtered.size().getInfo())
+            print('\n')
+            return s2_filtered 
+
+        # function for masking non-vegetation areas
+        def maskS2nonvegetation(image):
+
+                qa    = image.select('QA60')
+                scl   = image.select('SCL')
+                ndvi  = image.select('NDVI')
+                mndvi = image.select('MNDVI')
+
+                cloudBitMask = 1 << 10
+                cirrusBitMask = 1 << 11
+
+                #vegetationMask1 = 4 # vegetation
+                #vegetationMask2 = 5 # non-vegetated
+                #vegetationMask3 = 6 # water
+                #vegetationMask4 = 7 # unclassified
+                #vegetationMask5 = 11 # snow
+
+                # This mask selects vegetation + non-vegetated + water + unclassified + areas with VIs (NDVI and MNDVI) greater that a threshold set in the configuration file
+                mask = scl.eq(4).Or(scl.eq(5)).Or(scl.eq(6)).Or(scl.eq(7)).Or(scl.eq(11)).And(qa.bitwiseAnd(cloudBitMask).eq(0)).And(qa.bitwiseAnd(cirrusBitMask).eq(0)).And(ndvi.gte(ndviMask)).And(mndvi.gte(mndviMask))
+
+                vegetation = image.updateMask(mask)
+                return vegetation
+
+        # function to transform ee objects to dataframes pandas objects
+        # function that transforms arrays into dataframes
+        def ee_array_to_df(imagecollection, geometry, scale):
+
+            """Transforms client-side ee.Image.getRegion array to pandas.DataFrame."""
+
+            # select bands from the image collection
+            filtered = imagecollection.select(bands)
+
+            # function that produce functions to reduce a region with atatistics (mean, max, min, etc.)
+            def create_reduce_region_function(geometry,
+                                                reducer=ee.Reducer.mean(),
+                                                scale=1000,
+                                                crs=crs,
+                                                bestEffort=True,
+                                                maxPixels=1e13,
+                                                tileScale=4):
+
+                    def reduce_region_function(img):
+
+                        stat = img.reduceRegion(
+                            reducer=reducer,
+                            geometry=geometry,
+                            scale=scale,
+                            crs=crs,
+                            bestEffort=bestEffort,
+                            maxPixels=maxPixels,
+                            tileScale=tileScale)
+
+                        return ee.Feature(geometry, stat).set({'millis': img.date().millis()})
+                    return reduce_region_function
+
+            # function to transfer feature properties to a dictionary.
+            def fc_to_dict(fc):
+                    prop_names = fc.first().propertyNames()
+                    prop_lists = fc.reduceColumns(reducer=ee.Reducer.toList().repeat(prop_names.size()),selectors=prop_names).get('list')
+                    return ee.Dictionary.fromLists(prop_names, prop_lists)
+
+            # creating reduction function (reduce_VI is a function)
+            reduce_VI = create_reduce_region_function(
+                geometry=geometry, reducer=ee.Reducer.mean(), scale=scale, crs=crs)
+
+            # transform image collection into feature collection (tables)
+            VI_stat_fc = ee.FeatureCollection(imagecollection.map(reduce_VI)).filter(
+                ee.Filter.notNull(imagecollection.first().bandNames()))
+
+            # transform feature collection into dictionary object
+            VI_dict = fc_to_dict(VI_stat_fc).getInfo()
+
+            # transform dictionary into dataframe
+            VI_df = pd.DataFrame(VI_dict)
+
+            # convert column in datatime type object
+            VI_df['date']     = pd.to_datetime(VI_df['millis'], unit='ms').dt.date
+
+            # generate a list with the names of each band of the collection 
+            list_of_bands = filtered.first().bandNames().getInfo()
+
+            # remove rows without data inside.
+            VI_df = VI_df[['date', *list_of_bands]].dropna()
+
+            # convert the data to numeric values.
+            for band in list_of_bands:
+                VI_df[band] = pd.to_numeric(VI_df[band], errors='coerce', downcast ='float')
+
+            # reduction in case there are two pixels from different images for the same day
+            VI_df = VI_df.groupby('date').mean().reset_index().set_index('date').copy()
+            return VI_df
+
+        def add_date_info(df):
+            df = df.reset_index()
+            df['date'] = pd.to_datetime(df['date'])
+            df['Year'] = pd.DatetimeIndex(df['date']).year
+
+            def timestamp(df):
+                df = df.timestamp()
+                return df
+
+            df['timestamp'] = df['date'].apply(timestamp)
+            df = df.set_index('date')
+            return df
+        
+        # Function to remove outliers in all columns of a DataFrame
+        def remove_outliers(df, z_thresh=3):
+            df_copy = df.copy()
+            # Create a mask for all True values initially
+            mask = pd.Series([True] * len(df_copy), index=df_copy.index)
+            for column in df_copy.columns:
+                # Calculate the Z-scores of the column
+                z_scores = np.abs(stats.zscore(df_copy[column].dropna()))
+                # Create a mask for the current column
+                column_mask = (z_scores < z_thresh)
+                # Update the overall mask with AND operation to keep only rows where all columns are within the threshold
+                mask &= column_mask.reindex(df_copy.index, fill_value=False)
+            # Return the DataFrame with rows where all columns are within the threshold
+            return df_copy[mask]
+
+        # Function to remove outliers in all columns of a DataFrame based on time windows
+        def remove_outliers_time_window(df, window_size=5, threshold=3):
+            df_copy = df.copy()
+            for column in df_copy.columns:
+                rolling_mean = df_copy[column].rolling(window=window_size, min_periods=1).mean()
+                rolling_std = df_copy[column].rolling(window=window_size, min_periods=1).std()
+                lower_bound = rolling_mean - threshold * rolling_std
+                upper_bound = rolling_mean + threshold * rolling_std
+                outliers = (df_copy[column] < lower_bound) | (df_copy[column] > upper_bound)
+                df_copy.loc[outliers, column] = np.nan
+            return df_copy
+
+
+        def get_daily_data(df, year_list):
+            # create time series with daily frequency
+            time_series = pd.date_range(start=str(year_list[0]), end=str(year_list[-1]+1), freq="D")
+            time_series = pd.DataFrame(time_series).rename(columns={0: 'date'}).set_index('date')
+
+            # allows to have a time series with daily frequency with gaps when the VI were not calculated or there were not S2 images
+            df_daily = pd.merge(left= time_series, right=df,
+                                            how="left", left_index = True , right_index = True) 
+            return df_daily
+
+        df_list = []
+
+        for index, years in enumerate(year_list[:]):
+            print(f"Index: {index}, Element: {years}")
+        
+            # create range according to data in the input datafiles   
+            start_df   = '%s-01-01'   %(year_list[index])                                                                                          
+            end_df     = '%s-12-31'   %(year_list[index])
+            start  = '%s-12-31'   %(year_list[index]-1)                                                                                          
+            end    = '%s-01-01'   %(year_list[index]+1)                                               
+            timeSD  = [start, end]
+
+            # create coordinates of the eddy covariance tower
+            lon_lat =  [longitude, latitude]         
+            point   = ee.Geometry.Point(lon_lat)
+
+            # collections google earth engine    
+            COPERNICUS_S2_L2A = collection 
+            COPERNICUS_S2_bands = ['B1', 'B2', 'B3', 'B4', 'B5', 'B6', 'B7', 'B8', 'B8A', 'B9', 'B11', 'B12', 'AOT', 'WVP', 'SCL', 'TCI_R', 'TCI_G', 'TCI_B', 'QA10', 'QA20', 'QA60']
+
+            # request of catalogues 
+            S2     = load_catalog(COPERNICUS_S2_L2A, timeSD, point, COPERNICUS_S2_bands)
+
+            # applying cloud filter 
+            S2_VI = cloud_filter(S2, 'CLOUDY_PIXEL_PERCENTAGE', max_cloud_coverage)   # max cloud coverage defined in the Config file
+
+            # apply cloud local filter. It requires 
+            # S2_VI = local_cloud_filter(S2_VI, aoi, local_cloud_coverage)
+
+            # calculation of vegetation indices for the collection
+            S2_VI = S2_VI.map(calculateVI)
+
+            # applying mask 
+            S2_VI = S2_VI.map(maskS2nonvegetation)
+
+            # applying funtion ee_array_to_df to the defined geometry
+            S2_VI_df  = ee_array_to_df(S2_VI, aoi, resolution) 
+            S2_VI_df  = S2_VI_df.groupby(S2_VI_df.index).sum().rename_axis('date')
+
+            # loop to join each S2_VI_df in a single dataframe per year named as df_VI
+            S2_VI_df  = add_date_info(S2_VI_df).rename_axis('date')
+
+            # create time series with daily frequency
+            time_series = pd.date_range(start=start_df, end=end_df, freq="D")
+            time_series = pd.DataFrame(time_series).rename(columns={0: 'date'}).set_index('date')
+
+            # allows to have a time series with daily frequency with gaps when the VI were not calculated or there were not S2 images
+            S2_VI_df = pd.merge(left= time_series, right = S2_VI_df,
+                                            how="left", left_index = True , right_index = True)  
+
+            df_list.append(S2_VI_df)
+
+        S2_VI_df  = pd.concat(df_list)
+
+        # Remove outliers from all columns
+        S2_VI_df_no_outliers_all = remove_outliers(S2_VI_df, z_thresh=3)
+        S2_VI_df_no_outliers_all_time = get_daily_data(S2_VI_df_no_outliers_all, year_list)
+        S2_VI_df_interpolated = S2_VI_df_no_outliers_all_time.interpolate(method='polynomial',order=1,  limit_direction ='forward').dropna()
+
+        # Parameters for Savitzky-Golay filter
+        window_size = 31  # Must be odd
+        poly_order = 3
+
+        # Apply Savitzky-Golay filter to each column
+        S2_VI_df_filtered = S2_VI_df_interpolated.apply(lambda x: savgol_filter(x, window_size, poly_order))
+
+        # file to extrapolate
+        df_VI_export_raw = S2_VI_df.dropna().drop(['Year','timestamp'], axis = 1)
+        df_VI_export_raw.to_csv(outputdir + '/VI_output/' + ID + "_Vegetation_indices_raw.csv") 
+
+        # file to extrapolate
+        df_VI_export_processed = S2_VI_df_filtered.dropna().drop(['Year','timestamp'], axis = 1) 
+        df_VI_export_processed.to_csv(outputdir + '/VI_output/' + ID + "_Vegetation_indices_processed.csv")   
+ 
+        print("       Exporting: Vegetation_indices.csv")
+        print('\n') 
+
+        #---------------------------------------------------------------------------------------------
+        # Save plots of VI
+        def plot_timeseries_vi_multiple(df):
+            # subplots.
+            fig, ax = plt.subplots(figsize=(14, 6)) #Indicates the size of the plot
+
+            if 'NDVI' in bands:
+                # add scatter plots //Adds the scatter points
+                ax.plot(df['NDVI'],
+                            c='#00FF00', alpha=1, label='NDVI', lw=2, linestyle = ':')
+            if 'EVI' in bands:
+                ax.plot(df['EVI'],
+                            c='red', alpha=1, label='EVI', lw=2, linestyle = ':')
+            if 'EVI2' in bands:
+                ax.plot(df['EVI2'],
+                            c='yellow', alpha=1, label='EVI-2', lw=2, linestyle = ':')
+            if 'CLr' in bands:
+                ax.plot(df['CLr'],
+                            c='green', alpha=1, label='CLr', lw=2, linestyle = ':')
+            if 'MNDVI' in bands:
+                ax.plot(df['MNDVI'],
+                            c='black', alpha=1, label='MNDVI', lw=2, linestyle = ':')
+            if 'MNDWI' in bands:
+                ax.plot(df['MNDWI'],
+                            c='#00FFFF', alpha=0.5, label='MNDWI', lw=2, linestyle = '-.')
+            if 'LSWI' in bands:
+                ax.plot(df['LSWI'],
+                            c='blue', alpha=0.8, label='LSWI', lw=2, linestyle = '-.')
+            if 'NDII' in bands:
+                ax.plot(df['NDII'],
+                            c='#00008B', alpha=0.8, label='NDII', lw=2, linestyle = '-.') #marker="x", markersize=2)
+
+            ax.set_title('Vegetation Indices', fontsize=16)
+            ax.set_xlabel('Date', fontsize=14)
+            ax.set_ylabel('Vegetation Index', fontsize=14)
+            ax.set_ylim(-1, 1)
+            ax.grid(lw=0.5)
+            ax.legend(fontsize=14, loc='lower right')
+
+            # shrink current axis by 20%
+            box = ax.get_position()
+            ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
+
+            # put a legend to the right of the current axis
+            ax.legend(loc='center left', bbox_to_anchor=(1, .8))
+            #plt.savefig(outputdir + '/VI_output/' + ID + '_VI_timeseries.png', dpi=300, format='png', bbox_inches='tight',pad_inches=0.0001)
+            plt.savefig(outputdir + '/VI_output/' + ID + '_VI_timeseries.png', dpi=300)
+
+            return plt.close() #.show()
+
+        plot_timeseries_vi_multiple(df_VI_export_processed)
+
+        #---------------------------------------------------------------------------------------------
+        # Save plots of VI
+        def plot_timeseries_vi_multiple(dfint, dffilt, dfraw, vi):
+            # subplots.
+            fig, ax = plt.subplots(figsize=(14, 6)) #Indicates the size of the plot
+
+            ax.plot(dfint[vi],
+                        c='green', alpha=1, label=vi + ' interpolation', lw=2, linestyle = ':')
+            
+            ax.plot(dffilt[vi],
+                        c='blue', alpha=1, label=vi + ' savgol filter', lw=1, linestyle = '-')
+            
+            # Add scatter plot for the original data points
+            ax.scatter(dfraw.index, dfraw[vi], c='red', alpha=0.6, label=f'{vi} original', marker='o')
+
+            # Add scatter plot for the original data points
+            ax.scatter(S2_VI_df_no_outliers_all.index, S2_VI_df_no_outliers_all[vi], c='yellow', alpha=0.6, label=f'{vi} without outliers ', marker='x')
+
+            ax.set_title(vi + ' '+ ID, fontsize=16)
+            ax.set_xlabel('Date', fontsize=14)
+            ax.set_ylabel(vi, fontsize=14)
+            # ax.set_ylim(-2, 2)
+            ax.grid(lw=0.5)
+            ax.legend(fontsize=14, loc='lower right')
+
+            # shrink current axis by 20%
+            box = ax.get_position()
+            ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
+
+            # put a legend to the right of the current axis
+            ax.legend(loc='center left', bbox_to_anchor=(1, .8))
+            #plt.savefig(outputdir + '/VI_output/' + ID + '_VI_timeseries.png', dpi=300, format='png', bbox_inches='tight',pad_inches=0.0001)
+            plt.savefig(outputdir + '/VI_output/' + ID + '_'+ vi + '_timeseries.png', dpi=300)
+
+            return plt.close() #.show()
+
+        for i in bands:
+            plot_timeseries_vi_multiple(S2_VI_df_interpolated, S2_VI_df_filtered, S2_VI_df, i)
+
+        return S2_VI_df, df_VI_export_processed 
+
+
+
 
     def calculate_VI_with_area_simplified(
             self,
@@ -1946,9 +2462,9 @@ class Gpp:
 
 
         # Remove outliers from all columns
-        df_no_outliers_all = remove_outliers(S2_VI_df, z_thresh=2)
-        df_no_outliers_local = remove_outliers_time_window(df_no_outliers_all, window_size=7, threshold=2)
-        df_no_outliers_local_time = get_daily_data(df_no_outliers_local, year_list)
+        df_no_outliers_all = remove_outliers(S2_VI_df, z_thresh=3)
+        # df_no_outliers_local = remove_outliers_time_window(df_no_outliers_all, window_size=7, threshold=2)
+        df_no_outliers_local_time = get_daily_data(df_no_outliers_all, year_list)
         S2_VI_df_interpolate = df_no_outliers_local_time.interpolate(method='polynomial',order=1,  limit_direction ='forward').dropna()
         # S2_VI_df_interpolate = df_no_outliers_local_time.interpolate(method='nearest',  limit_direction ='forward').dropna()
 
@@ -2103,7 +2619,7 @@ class Gpp:
             #plt.savefig(outputdir + '/VI_output/' + ID + '_VI_timeseries.png', dpi=300, format='png', bbox_inches='tight',pad_inches=0.0001)
             plt.savefig(outputdir + '/VI_output/' + ID + '_'+ vi + '_timeseries.png', dpi=300)
 
-            return plt #.show()
+            return plt.close() #.show()
 
         for i in bands:
             plot_timeseries_vi_multiple(S2_VI_df_interpolate, S2_VI_df_filtered, S2_VI_df, i)
