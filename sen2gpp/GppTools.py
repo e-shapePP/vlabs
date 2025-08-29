@@ -2460,7 +2460,6 @@ class Gpp:
         S2_VI_df = pd.merge(left= time_series, right = S2_VI_df,
                                         how="left", left_index = True , right_index = True)  
 
-
         # Remove outliers from all columns
         df_no_outliers_all = remove_outliers(S2_VI_df, z_thresh=3)
         # df_no_outliers_local = remove_outliers_time_window(df_no_outliers_all, window_size=7, threshold=2)
